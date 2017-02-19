@@ -15,7 +15,7 @@ flags.DEFINE_string('sample_save_path', 'sample', "directory for saving the samp
 flags.DEFINE_integer('num_classes', 530, "Number of classes the source dataset have. "
                                          "Should only be changed if not using the default dataset.")
 flags.DEFINE_integer('pretrain_iter', 20000, "Number of iteration to run the pretrain mode code.")
-flags.DEFINE_integer('train_iter', 2000, "Number of iteration to run the train mode code.")
+flags.DEFINE_integer('train_iter', 5000, "Number of iteration to run the train mode code.")
 flags.DEFINE_integer('sample_iter', 100, "Number of iteration to run the sample mode code.")
 FLAGS = flags.FLAGS
 

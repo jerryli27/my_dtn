@@ -5,10 +5,11 @@ The cat face data comes from https://sites.google.com/site/catdatacollection/dat
 import pickle
 import math
 import os
+import random
 import numpy as np
 from PIL import Image
 from typing import Union, List
-from random import randrange
+
 
 
 def imread(path, shape=None, bw=False, rgba=False, dtype=np.float32):
@@ -114,9 +115,10 @@ def get_category_name(image_path):
     :param image_path:
     :return:
     """
-    image_dir = os.path.dirname(image_path).strip('/')
-    image_dir.strip('/face')
-    category_name = image_dir[image_dir.rfind("/")+1:]
+    # image_dir = os.path.dirname(image_path).strip('/')
+    # image_dir.strip('face').strip('/')
+    # category_name = image_dir[image_dir.rfind("/")+1:]
+    category_name = image_path.split('/')[-3]
     return category_name
 
 def main():
@@ -135,22 +137,29 @@ def main():
     # save_pickle(train, 'cat/train.pkl')
     # save_pickle(test, 'cat/test.pkl')
 
-    face_dirs = get_all_image_paths_in_dir('facescrub/')
+    face_dirs = [d for d in get_all_image_paths_in_dir('facescrub/') if d.split('/')[-2] == "face"]
     face_categories = [get_category_name(d) for d in face_dirs]
     face_unique_categories = sorted(list(set(face_categories)))
+    assert len(face_unique_categories) == 530
+    print("Number of unique categories for human face: %d." %(len(face_unique_categories)))
     face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
 
-    random_index = randrange(0, len(face_dirs))
+    random_index = list(range(len(face_dirs)))
+    random.shuffle(random_index)
     num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
     train_index = random_index[:num_train]
     test_index = random_index[num_train:]
 
-    face_train = np.array(read_and_resize_images(face_dirs[train_index]))
-    face_train_label = np.array([face_unique_categories_dict[d] for d in face_categories[train_index]])
+    face_train_dirs = [face_dirs[i] for i in train_index]
+    face_train = np.array(read_and_resize_images(face_train_dirs))
+    assert face_train.shape[1] == 32 and face_train.shape[2] == 32 and face_train.shape[3] == 3
+    face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]])
     train = {'X': face_train, 'y': face_train_label}
 
-    face_test = np.array(read_and_resize_images(face_dirs[test_index]))
-    face_test_label = np.array([face_unique_categories_dict[d] for d in face_categories[test_index]])
+    face_test_dirs = [face_dirs[i] for i in test_index]
+    face_test = np.array(read_and_resize_images(face_test_dirs))
+    assert face_test.shape[1] == 32 and face_test.shape[2] == 32 and face_test.shape[3] == 3
+    face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]])
     test = {'X': face_test, 'y': face_test_label}
 
     if not os.path.exists('human/'):

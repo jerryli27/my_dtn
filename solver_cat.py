@@ -10,7 +10,7 @@ import scipy.misc
 class Solver(object):
 
     def __init__(self, model, batch_size=100, pretrain_iter=20000, train_iter=2000, sample_iter=100,
-                 source_dir='svhn', target_dir='mnist', log_dir='logs', sample_save_path='sample',
+                 source_dir='human', target_dir='cat', log_dir='logs', sample_save_path='sample',
                  model_save_path='model', pretrained_model='model/svhn_model-20000', test_model='model/dtn-1800'):
         
         self.model = model
