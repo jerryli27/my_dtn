@@ -125,6 +125,9 @@ class Solver(object):
             ckpt = tf.train.get_checkpoint_state(self.model_save_path)
             if (not os.path.exists(self.pretrained_model)) and ckpt and ckpt.model_checkpoint_path:
                 self.pretrained_model = ckpt.model_checkpoint_path
+                print("using latest checkpoint instead!")
+            else:
+                print("loading from %s" %self.pretrained_model)
             restorer.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(logdir=self.log_dir, graph=tf.get_default_graph())
             saver = tf.train.Saver()
@@ -190,6 +193,14 @@ class Solver(object):
         svhn_images, _ = self.load_source(self.source_dir)
 
         with tf.Session(config=self.config) as sess:
+            # Get latest checkpoint instead
+            ckpt = tf.train.get_checkpoint_state(self.model_save_path)
+            if (not os.path.exists(self.test_model)) and ckpt and ckpt.model_checkpoint_path:
+                self.test_model = ckpt.model_checkpoint_path
+                print("using latest checkpoint instead!")
+            else:
+                print("loading from %s" %self.test_model)
+
             # load trained parameters
             print ('loading test model..')
             saver = tf.train.Saver()
