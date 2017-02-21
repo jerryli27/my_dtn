@@ -5,10 +5,11 @@ import tensorflow.contrib.slim as slim
 class DTN(object):
     """Domain Transfer Network
     """
-    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10):
+    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32):
         self.mode = mode
         self.learning_rate = learning_rate
         self.num_classes = num_classes
+        self.hw = hw
         
     def content_extractor(self, images, reuse=False):
         # images: (batch, 32, 32, 3) or (batch, 32, 32, 1)
@@ -34,9 +35,9 @@ class DTN(object):
                     net = slim.batch_norm(net, scope='bn3_1')
                     net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3_2')     # (batch_size, 4, 4, 256)
                     net = slim.batch_norm(net, scope='bn3_2')
-                    net = slim.conv2d(net, 128, [3, 3], stride=1, scope='conv4_1')   # (batch_size, 4, 4, 128)
+                    net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv4_1')   # (batch_size, 4, 4, 512)
                     net = slim.batch_norm(net, scope='bn4_1')
-                    net = slim.conv2d(net, 128, [4, 4], stride=2, padding='VALID', scope='conv4_2')   # (batch_size, 1, 1, 128)
+                    net = slim.conv2d(net, 512, [4, 4], stride=2, padding='VALID', scope='conv4_2')   # (batch_size, 1, 1, 512)
                     net = slim.batch_norm(net, activation_fn=tf.nn.tanh, scope='bn4_2')
                     if self.mode == 'pretrain':
                         net = slim.conv2d(net, self.num_classes, [1, 1], padding='VALID', scope='out')
@@ -95,7 +96,7 @@ class DTN(object):
     def build_model(self):
         
         if self.mode == 'pretrain':
-            self.images = tf.placeholder(tf.float32, [None, 32, 32, 3], 'svhn_images')
+            self.images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
             self.labels = tf.placeholder(tf.int64, [None], 'svhn_labels')
             
             # logits and accuracy
@@ -115,15 +116,15 @@ class DTN(object):
             self.summary_op = tf.summary.merge([loss_summary, accuracy_summary])
 
         elif self.mode == 'eval':
-            self.images = tf.placeholder(tf.float32, [None, 32, 32, 3], 'svhn_images')
+            self.images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
 
             # source domain (svhn to mnist)
             self.fx = self.content_extractor(self.images)
             self.sampled_images = self.generator(self.fx)
 
         elif self.mode == 'train':
-            self.src_images = tf.placeholder(tf.float32, [None, 32, 32, 3], 'svhn_images')
-            self.trg_images = tf.placeholder(tf.float32, [None, 32, 32, 3], 'mnist_images')
+            self.src_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
+            self.trg_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'mnist_images')
             
             # source domain (svhn to mnist)
             self.fx = self.content_extractor(self.src_images)

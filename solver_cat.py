@@ -37,7 +37,7 @@ class Solver(object):
             mnist = pickle.load(f)
         images = mnist['X'] / 127.5 - 1
         labels = mnist['y']
-        print ('finished loading source image dataset..!')
+        print ('finished loading source image dataset..! Dataset size is : %d' %(images.shape[0]))
         return images, labels
 
     def load_target(self, image_dir, split='train'):
@@ -47,7 +47,7 @@ class Solver(object):
         with open(image_dir, 'rb') as f:
             mnist = pickle.load(f)
         images = mnist['X'] / 127.5 - 1
-        print ('finished loading target image dataset..!')
+        print ('finished loading target image dataset..! Dataset size is : %d' %(images.shape[0]))
         return images
 
     def merge_images(self, sources, targets, k=10):

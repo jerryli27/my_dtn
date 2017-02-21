@@ -7,6 +7,7 @@ import math
 import os
 import random
 import numpy as np
+from bs4 import BeautifulSoup
 from PIL import Image
 from typing import Union, List
 
@@ -121,7 +122,79 @@ def get_category_name(image_path):
     category_name = image_path.split('/')[-3]
     return category_name
 
+def load_cat_and_dog(hw, parent_dir = 'cat_and_dog', save_dir='cnd'):
+    # train = load_cat_and_dog_face_from_list(hw, parent_dir=parent_dir,is_trainval=True)
+    train, test = load_cat_and_dog_face_from_list(hw, parent_dir=parent_dir)
+
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+
+    save_pickle(train, os.path.join(save_dir,'train.pkl'))
+    save_pickle(test, os.path.join(save_dir,'test.pkl'))
+
+def load_cat_and_dog_face_from_list(hw, parent_dir="cat_and_dog", train_split = 0.9):
+    # file_path = os.path.join(parent_dir,"annotations/trainval.txt") if is_trainval else os.path.join(parent_dir,"annotations/test.txt")
+    # with open(file_path) as trainval_file:
+    #     lines = trainval_file.readlines()
+    #     file_names = [l.split(" ")[0] for l in lines]
+
+    file_names = []
+    for path, subdirs, files in os.walk(os.path.join(parent_dir,"annotations/xmls")):
+        for name in files:
+            full_file_path = os.path.join(path, name)
+            base, ext = os.path.splitext(full_file_path)
+            _, file_name = os.path.split(base)
+            if ext == ".xml":
+                file_names.append(file_name)
+
+    file_names = sorted(file_names)
+    file_names = [name for name in file_names if (
+        os.path.isfile(os.path.join(parent_dir, "annotations/xmls", name+'.xml'))
+        and os.path.isfile(os.path.join(parent_dir, "images", name+'.jpg')))]
+
+    xml = [load_annotation(os.path.join(parent_dir, "annotations/xmls", p+'.xml')) for p in file_names]
+    crop_coordinates = [(int(current_xml.annotation.object.bndbox.xmin.contents[0]),
+                         int(current_xml.annotation.object.bndbox.ymin.contents[0]),
+                         int(current_xml.annotation.object.bndbox.xmax.contents[0]),
+                         int(current_xml.annotation.object.bndbox.ymax.contents[0])) for current_xml in xml]
+    categories = [current_xml.annotation.filename.contents[0].split("_")[0] for current_xml in xml]
+    unique_categories = sorted(list(set(categories)))
+    print("Number of unique categories for cat and dog dataset: %d." %(len(unique_categories)))
+    unique_categories_dict = {unique_categories[i]:i for i in range(len(unique_categories))}
+
+    labels = np.array([unique_categories_dict[d] for d in categories])
+
+    image_paths = [os.path.join(parent_dir, "images", p+'.jpg') for p in file_names]
+    cropped_images = np.array([np.asarray(
+        Image.open(path).convert("RGB").crop(crop_coordinates[path_i]).resize((hw,hw), Image.ANTIALIAS),np.uint8)
+                      for path_i, path in enumerate(image_paths)]) # Should I use np.float32??
+
+    num_train = int(cropped_images.shape[0] * train_split) # Select 90% of data as training data.
+    train_images = cropped_images[:num_train]
+    test_images = cropped_images[num_train:]
+    train_labels = labels[:num_train]
+    test_labels = labels[num_train:]
+
+    return {'X': train_images, 'y': train_labels},  {'X': test_images, 'y': test_labels}
+
+
+def load_annotation(path):
+    """
+    Load annotation file for a given image.
+    Args:
+        img_name (string): string of the image name, relative to
+            the image directory.
+    Returns:
+        BeautifulSoup structure: the annotation labels loaded as a
+            BeautifulSoup data structure
+    """
+    with open(path) as f:
+        xml = f.readlines()
+    xml = ''.join([line.strip('\t') for line in xml])
+    return BeautifulSoup(xml)
+
 def main():
+    # This is for when I manually separated train and test
     # cat_train_dirs = get_all_image_paths_in_dir('CatOpen/train/')
     # cats_train = np.array(read_and_resize_images(cat_train_dirs))
     #
@@ -137,35 +210,61 @@ def main():
     # save_pickle(train, 'cat/train.pkl')
     # save_pickle(test, 'cat/test.pkl')
 
-    face_dirs = [d for d in get_all_image_paths_in_dir('facescrub/') if d.split('/')[-2] == "face"]
-    face_categories = [get_category_name(d) for d in face_dirs]
-    face_unique_categories = sorted(list(set(face_categories)))
-    assert len(face_unique_categories) == 530
-    print("Number of unique categories for human face: %d." %(len(face_unique_categories)))
-    face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
+    # This one won't work because profile data is gray scale..
+    # cat_front_dirs = get_all_image_paths_in_dir('CatOpen/')
+    # cat_front_images = np.array(read_and_resize_images(cat_front_dirs))
+    # cat_left_dirs = get_all_image_paths_in_dir('ProfileData/')
+    # cat_left_images = np.array(read_and_resize_images(cat_left_dirs))
+    # cat_right_images = cat_left_images[:,:,::-1,:] # flip
+    #
+    # cat_all_images = np.random.shuffle(np.concatenate((cat_front_images,cat_left_images,cat_right_images)))
+    # num_train = cat_all_images.shape[0] * 90 / 100  # Select 90% of data as training data.
+    # cat_train_images = cat_all_images[:num_train]
+    # cat_test_images = cat_all_images[num_train:]
+    #
+    # train = {'X': cat_train_images}
+    # test = {'X': cat_test_images}
+    #
+    # if not os.path.exists('cat/'):
+    #     os.mkdir('cat/')
+    #
+    # save_pickle(train, 'cat/train.pkl')
+    # save_pickle(test, 'cat/test.pkl')
 
-    random_index = list(range(len(face_dirs)))
-    random.shuffle(random_index)
-    num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
-    train_index = random_index[:num_train]
-    test_index = random_index[num_train:]
+    #
+    # face_dirs = [d for d in get_all_image_paths_in_dir('facescrub/') if d.split('/')[-2] == "face"]
+    # face_categories = [get_category_name(d) for d in face_dirs]
+    # face_unique_categories = sorted(list(set(face_categories)))
+    # assert len(face_unique_categories) == 530
+    # print("Number of unique categories for human face: %d." %(len(face_unique_categories)))
+    # face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
+    #
+    # random_index = list(range(len(face_dirs)))
+    # random.shuffle(random_index)
+    # num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
+    # train_index = random_index[:num_train]
+    # test_index = random_index[num_train:]
+    #
+    # face_train_dirs = [face_dirs[i] for i in train_index]
+    # face_train = np.array(read_and_resize_images(face_train_dirs))
+    # assert face_train.shape[1] == 32 and face_train.shape[2] == 32 and face_train.shape[3] == 3
+    # face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]])
+    # train = {'X': face_train, 'y': face_train_label}
+    #
+    # face_test_dirs = [face_dirs[i] for i in test_index]
+    # face_test = np.array(read_and_resize_images(face_test_dirs))
+    # assert face_test.shape[1] == 32 and face_test.shape[2] == 32 and face_test.shape[3] == 3
+    # face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]])
+    # test = {'X': face_test, 'y': face_test_label}
+    #
+    # if not os.path.exists('human/'):
+    #     os.mkdir('human/')
+    # save_pickle(train, 'human/train.pkl')
+    # save_pickle(test, 'human/test.pkl')
 
-    face_train_dirs = [face_dirs[i] for i in train_index]
-    face_train = np.array(read_and_resize_images(face_train_dirs))
-    assert face_train.shape[1] == 32 and face_train.shape[2] == 32 and face_train.shape[3] == 3
-    face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]])
-    train = {'X': face_train, 'y': face_train_label}
-
-    face_test_dirs = [face_dirs[i] for i in test_index]
-    face_test = np.array(read_and_resize_images(face_test_dirs))
-    assert face_test.shape[1] == 32 and face_test.shape[2] == 32 and face_test.shape[3] == 3
-    face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]])
-    test = {'X': face_test, 'y': face_test_label}
-
-    if not os.path.exists('human/'):
-        os.mkdir('human/')
-    save_pickle(train, 'human/train.pkl')
-    save_pickle(test, 'human/test.pkl')
+    load_cat_and_dog(32, save_dir="cnd_32")
+    load_cat_and_dog(128, save_dir="cnd_128")
+    pass
 
     
 if __name__ == "__main__":
