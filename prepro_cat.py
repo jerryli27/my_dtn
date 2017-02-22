@@ -6,6 +6,7 @@ import pickle
 import math
 import os
 import random
+import cv2
 import numpy as np
 from bs4 import BeautifulSoup
 from PIL import Image
@@ -107,10 +108,13 @@ def resize_images(image_arrays, size=[32, 32]):
 
 def save_pickle(data, path):
     with open(path, 'wb') as f:
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        try:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        except:
+            pickle.dump(data, f)
         print ('Saved %s..' %path)
 
-def get_category_name(image_path):
+def get_category_name(image_path, category_subdir_index = -3):
     """
     Assume the category name is the dir that contains the image
     :param image_path:
@@ -119,12 +123,17 @@ def get_category_name(image_path):
     # image_dir = os.path.dirname(image_path).strip('/')
     # image_dir.strip('face').strip('/')
     # category_name = image_dir[image_dir.rfind("/")+1:]
-    category_name = image_path.split('/')[-3]
+    category_name = image_path.split('/')[category_subdir_index]
     return category_name
 
 def load_cat_and_dog(hw, parent_dir = 'cat_and_dog', save_dir='cnd'):
     # train = load_cat_and_dog_face_from_list(hw, parent_dir=parent_dir,is_trainval=True)
     train, test = load_cat_and_dog_face_from_list(hw, parent_dir=parent_dir)
+
+    # for i in range(train['X'].shape[0]):
+    #
+    #     cv2.imshow('Hint', cv2.cvtColor(train['X'][i].astype(np.uint8), cv2.COLOR_RGB2BGR))
+    #     cv2.waitKey(0)
 
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
@@ -231,12 +240,19 @@ def main():
     # save_pickle(train, 'cat/train.pkl')
     # save_pickle(test, 'cat/test.pkl')
 
+    # The following is for datasets that has all images in subdirectories representing their categories.
+    # Human dataset
+    # rootdir = '/mnt/data_drive/home/ubuntu/PycharmProjects/facescrub/download/'  # 'facescrub/'
+    # save_dir = 'human_128/'
+    # hw = 128
     #
-    # face_dirs = [d for d in get_all_image_paths_in_dir('facescrub/') if d.split('/')[-2] == "face"]
+    #
+    # face_dirs = [d for d in get_all_image_paths_in_dir(rootdir) if d.split('/')[-2] == "face"]
     # face_categories = [get_category_name(d) for d in face_dirs]
     # face_unique_categories = sorted(list(set(face_categories)))
-    # assert len(face_unique_categories) == 530
-    # print("Number of unique categories for human face: %d." %(len(face_unique_categories)))
+    # # assert len(face_unique_categories) == 530 # Uncomment this for facescrub dataset sanity check.
+    # print("Number of unique categories for human face: %d. Number of images %d" %(len(face_unique_categories), len(face_dirs)))
+    # assert face_unique_categories > 0 and face_dirs > 0
     # face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
     #
     # random_index = list(range(len(face_dirs)))
@@ -246,24 +262,63 @@ def main():
     # test_index = random_index[num_train:]
     #
     # face_train_dirs = [face_dirs[i] for i in train_index]
-    # face_train = np.array(read_and_resize_images(face_train_dirs))
-    # assert face_train.shape[1] == 32 and face_train.shape[2] == 32 and face_train.shape[3] == 3
-    # face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]])
+    # face_train = np.array(read_and_resize_images(face_train_dirs, height=hw, width=hw), dtype=np.uint8)
+    # assert face_train.shape[1] == hw and face_train.shape[2] == hw and face_train.shape[3] == 3
+    # face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]], dtype=np.uint8)
     # train = {'X': face_train, 'y': face_train_label}
     #
     # face_test_dirs = [face_dirs[i] for i in test_index]
-    # face_test = np.array(read_and_resize_images(face_test_dirs))
-    # assert face_test.shape[1] == 32 and face_test.shape[2] == 32 and face_test.shape[3] == 3
-    # face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]])
+    # face_test = np.array(read_and_resize_images(face_test_dirs, height=hw, width=hw), dtype=np.uint8)
+    # assert face_test.shape[1] == hw and face_test.shape[2] == hw and face_test.shape[3] == 3
+    # face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]], dtype=np.uint8)
     # test = {'X': face_test, 'y': face_test_label}
     #
-    # if not os.path.exists('human/'):
-    #     os.mkdir('human/')
-    # save_pickle(train, 'human/train.pkl')
-    # save_pickle(test, 'human/test.pkl')
+    # if not os.path.exists(save_dir):
+    #     os.mkdir(save_dir)
+    # save_pickle(train, os.path.join(save_dir,'train.pkl'))
+    # save_pickle(test, os.path.join(save_dir,'test.pkl'))
 
-    load_cat_and_dog(32, save_dir="cnd_32")
-    load_cat_and_dog(128, save_dir="cnd_128")
+    # rootdir = '/mnt/data_drive/home/ubuntu/datasets/animeface-character-dataset/thumb/'  # 'facescrub/'
+    # save_dir = '/mnt/data_drive/home/ubuntu/datasets/anime_face_128/'
+    # hw = 128
+    rootdir = '/mnt/data_drive/home/ubuntu/datasets/animeface-character-dataset/thumb/'  # 'facescrub/'
+    # save_dir = '/mnt/data_drive/home/ubuntu/datasets/anime_face_128/'
+    # hw = 128
+    for hw in [32,128]:
+
+        save_dir = '/mnt/data_drive/home/ubuntu/datasets/anime_face_%d/' %hw
+        face_dirs = [d for d in get_all_image_paths_in_dir(rootdir)]
+        face_categories = [get_category_name(d,category_subdir_index=-2) for d in face_dirs]
+        face_unique_categories = sorted(list(set(face_categories)))
+        print("Number of unique categories for human face: %d. Number of images %d. They are: %s" %(len(face_unique_categories), len(face_dirs), str(face_unique_categories)))
+        assert face_unique_categories > 0 and face_dirs > 0
+        face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
+
+        random_index = list(range(len(face_dirs)))
+        random.shuffle(random_index)
+        num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
+        train_index = random_index[:num_train]
+        test_index = random_index[num_train:]
+
+        face_train_dirs = [face_dirs[i] for i in train_index]
+        face_train = np.array(read_and_resize_images(face_train_dirs, height=hw, width=hw), dtype=np.uint8)
+        assert face_train.shape[1] == hw and face_train.shape[2] == hw and face_train.shape[3] == 3
+        face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]], dtype=np.uint8)
+        train = {'X': face_train, 'y': face_train_label}
+
+        face_test_dirs = [face_dirs[i] for i in test_index]
+        face_test = np.array(read_and_resize_images(face_test_dirs, height=hw, width=hw), dtype=np.uint8)
+        assert face_test.shape[1] == hw and face_test.shape[2] == hw and face_test.shape[3] == 3
+        face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]], dtype=np.uint8)
+        test = {'X': face_test, 'y': face_test_label}
+
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        save_pickle(train, os.path.join(save_dir,'train.pkl'))
+        save_pickle(test, os.path.join(save_dir,'test.pkl'))
+
+    # load_cat_and_dog(32, save_dir="cnd_32")
+    # load_cat_and_dog(128, save_dir="cnd_128")
     pass
 
     

@@ -12,13 +12,13 @@ anime character face dataset http://www.nurs.or.jp/~nagadomi/animeface-character
 """
 
 import tensorflow as tf
-from model_cat import DTN
-from solver_cat import Solver
+from model_cat_wgan import DTN
+from solver_cat_wgan import Solver
 
 flags = tf.app.flags
 flags.DEFINE_string('mode', 'train', "'pretrain', 'train' or 'eval'")
-flags.DEFINE_string('model_save_path', 'model', "directory for saving the model")
-flags.DEFINE_string('sample_save_path', 'sample', "directory for saving the sampled images")
+flags.DEFINE_string('model_save_path', 'model_wgan', "directory for saving the model")
+flags.DEFINE_string('sample_save_path', 'sample_wgan', "directory for saving the sampled images")
 flags.DEFINE_string('target_dir', 'cat', "directory to target images saved in two pickel files.")
 flags.DEFINE_integer('num_classes', 530, "Number of classes the source dataset have. "
                                          "Should only be changed if not using the default dataset.")
