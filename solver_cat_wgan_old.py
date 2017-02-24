@@ -8,11 +8,10 @@ import scipy.misc
 
 
 class Solver(object):
-
     def __init__(self, model, batch_size=100, pretrain_iter=20000, train_iter=2000, sample_iter=100,
                  source_dir='human', target_dir='cat', log_dir='logs', sample_save_path='sample',
                  model_save_path='model', pretrained_model='model/svhn_model-20000', test_model='model/dtn-1800'):
-        
+
         self.model = model
         self.batch_size = batch_size
         self.pretrain_iter = pretrain_iter
@@ -26,40 +25,40 @@ class Solver(object):
         self.pretrained_model = pretrained_model
         self.test_model = test_model
         self.config = tf.ConfigProto()
-        self.config.gpu_options.allow_growth=True
+        self.config.gpu_options.allow_growth = True
 
     def load_source(self, image_dir, split='train'):
         print ('loading source image dataset..')
         # TODO: Maybe use two separate training datasets, one for pretrain and one for train.
-        image_file = 'train.pkl' if split=='train' else 'test.pkl'
+        image_file = 'train.pkl' if split == 'train' else 'test.pkl'
         image_dir = os.path.join(image_dir, image_file)
         with open(image_dir, 'rb') as f:
             mnist = pickle.load(f)
         images = mnist['X'] / 127.5 - 1
         labels = mnist['y']
-        print ('finished loading source image dataset..! Dataset size is : %d' %(images.shape[0]))
+        print ('finished loading source image dataset..! Dataset size is : %d' % (images.shape[0]))
         return images, labels
 
     def load_target(self, image_dir, split='train'):
         print ('loading target image dataset..')
-        image_file = 'train.pkl' if split=='train' else 'test.pkl'
+        image_file = 'train.pkl' if split == 'train' else 'test.pkl'
         image_dir = os.path.join(image_dir, image_file)
         with open(image_dir, 'rb') as f:
             mnist = pickle.load(f)
         images = mnist['X'] / 127.5 - 1
-        print ('finished loading target image dataset..! Dataset size is : %d' %(images.shape[0]))
+        print ('finished loading target image dataset..! Dataset size is : %d' % (images.shape[0]))
         return images
 
     def merge_images(self, sources, targets, k=10):
         _, h, w, _ = sources.shape
         row = int(np.sqrt(self.batch_size))
-        merged = np.zeros([row*h, row*w*2, 3])
+        merged = np.zeros([row * h, row * w * 2, 3])
 
         for idx, (s, t) in enumerate(zip(sources, targets)):
             i = idx // row
             j = idx % row
-            merged[i*h:(i+1)*h, (j*2)*h:(j*2+1)*h, :] = s
-            merged[i*h:(i+1)*h, (j*2+1)*h:(j*2+2)*h, :] = t
+            merged[i * h:(i + 1) * h, (j * 2) * h:(j * 2 + 1) * h, :] = s
+            merged[i * h:(i + 1) * h, (j * 2 + 1) * h:(j * 2 + 2) * h, :] = t
         return merged
 
     def pretrain(self):
@@ -70,32 +69,32 @@ class Solver(object):
         # build a graph
         model = self.model
         model.build_model()
-        
+
         with tf.Session(config=self.config) as sess:
             tf.global_variables_initializer().run()
             saver = tf.train.Saver()
             summary_writer = tf.summary.FileWriter(logdir=self.log_dir, graph=tf.get_default_graph())
             step = 0
-            for step in range(self.pretrain_iter+1):
+            for step in range(self.pretrain_iter + 1):
                 i = step % int(train_images.shape[0] / self.batch_size)
-                batch_images = train_images[i*self.batch_size:(i+1)*self.batch_size]
-                batch_labels = train_labels[i*self.batch_size:(i+1)*self.batch_size] 
+                batch_images = train_images[i * self.batch_size:(i + 1) * self.batch_size]
+                batch_labels = train_labels[i * self.batch_size:(i + 1) * self.batch_size]
                 feed_dict = {model.images: batch_images, model.labels: batch_labels}
-                sess.run(model.train_op, feed_dict) 
+                sess.run(model.train_op, feed_dict)
 
-                if (step+1) % 10 == 0:
+                if (step + 1) % 10 == 0:
                     summary, l, acc = sess.run([model.summary_op, model.loss, model.accuracy], feed_dict)
                     rand_idxs = np.random.permutation(test_images.shape[0])[:self.batch_size]
-                    test_acc, _ = sess.run(fetches=[model.accuracy, model.loss], 
-                                           feed_dict={model.images: test_images[rand_idxs], 
+                    test_acc, _ = sess.run(fetches=[model.accuracy, model.loss],
+                                           feed_dict={model.images: test_images[rand_idxs],
                                                       model.labels: test_labels[rand_idxs]})
                     summary_writer.add_summary(summary, step)
                     print ('Step: [%d/%d] loss: [%.6f] train acc: [%.2f] test acc [%.2f]' \
-                               %(step+1, self.pretrain_iter, l, acc, test_acc))
+                           % (step + 1, self.pretrain_iter, l, acc, test_acc))
 
-                if (step+1) % 1000 == 0:  
-                    saver.save(sess, os.path.join(self.model_save_path, 'svhn_model'), global_step=step+1) 
-                    print ('svhn_model-%d saved..!' %(step+1))
+                if (step + 1) % 1000 == 0:
+                    saver.save(sess, os.path.join(self.model_save_path, 'svhn_model'), global_step=step + 1)
+                    print ('svhn_model-%d saved..!' % (step + 1))
 
             saver.save(sess, os.path.join(self.model_save_path, 'svhn_model'), global_step=step + 1)
             print ('svhn_model-%d saved..!' % (step + 1))
@@ -118,81 +117,72 @@ class Solver(object):
             # initialize G and D
             tf.global_variables_initializer().run()
             # restore variables of F
-            # NO LONGER NEED THIS because the vgg face is already pretrained.
-            # print ('loading pretrained model F..')
-            # # variables_to_restore = slim.get_model_variables(scope='content_extractor')
-            # t_vars = tf.trainable_variables()
-            # variables_to_restore = slim.get_model_variables(suffix='vgg_face') #  [var for var in t_vars if 'vgg_face' in var.name]
-            # restorer = tf.train.Saver(variables_to_restore)
-            # # Get latest checkpoint instead
-            # ckpt = tf.train.get_checkpoint_state(self.model_save_path)
-            # if (not os.path.exists(self.pretrained_model)) and ckpt and ckpt.model_checkpoint_path:
-            #     self.pretrained_model = ckpt.model_checkpoint_path
-            #     print("using latest checkpoint instead!")
-            # else:
-            #     print("loading from %s" %self.pretrained_model)
-            # restorer.restore(sess, self.pretrained_model)
+            print ('loading pretrained model F..')
+            variables_to_restore = slim.get_model_variables(scope='content_extractor')
+            restorer = tf.train.Saver(variables_to_restore)
+            # Get latest checkpoint instead
+            ckpt = tf.train.get_checkpoint_state(self.model_save_path)
+            if (not os.path.exists(self.pretrained_model)) and ckpt and ckpt.model_checkpoint_path:
+                self.pretrained_model = ckpt.model_checkpoint_path
+                print("using latest checkpoint instead!")
+            else:
+                print("loading from %s" % self.pretrained_model)
+            restorer.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(logdir=self.log_dir, graph=tf.get_default_graph())
             saver = tf.train.Saver()
 
             print ('start training..!')
             f_interval = 15
-            for step in range(self.train_iter+1):
-                num_times_train_d = 100 if step < 25 or step % 100 == 0 else 5
+            for step in range(self.train_iter + 1):
+
                 i = step % int(svhn_images.shape[0] / self.batch_size)
                 # train the model for source domain S
-                src_images = svhn_images[i*self.batch_size:(i+1)*self.batch_size]
+                src_images = svhn_images[i * self.batch_size:(i + 1) * self.batch_size]
                 feed_dict = {model.src_images: src_images}
 
-                for train_d_i in range(num_times_train_d):
-                    sess.run(model.d_train_op_src, feed_dict)
-                    sess.run(model.d_clip_ops, feed_dict)
+                sess.run(model.d_train_op_src, feed_dict)
                 sess.run([model.g_train_op_src], feed_dict)
-                sess.run([model.g_train_op_src], feed_dict) 
-                sess.run([model.g_train_op_src], feed_dict) 
-                sess.run([model.g_train_op_src], feed_dict) 
-                sess.run([model.g_train_op_src], feed_dict) 
                 sess.run([model.g_train_op_src], feed_dict)
-                
+                sess.run([model.g_train_op_src], feed_dict)
+                sess.run([model.g_train_op_src], feed_dict)
+                sess.run([model.g_train_op_src], feed_dict)
+                sess.run([model.g_train_op_src], feed_dict)
+
                 if step > 1600:
                     f_interval = 30
-                
+
                 if i % f_interval == 0:
                     sess.run(model.f_train_op_src, feed_dict)
-                
-                if (step+1) % 10 == 0:
+
+                if (step + 1) % 10 == 0:
                     summary, dl, gl, fl = sess.run([model.summary_op_src, \
-                        model.d_loss_src, model.g_loss_src, model.f_loss_src], feed_dict)
+                                                    model.d_loss_src, model.g_loss_src, model.f_loss_src], feed_dict)
                     summary_writer.add_summary(summary, step)
                     print ('[Source] step: [%d/%d] d_loss: [%.6f] g_loss: [%.6f] f_loss: [%.6f]' \
-                               %(step+1, self.train_iter, dl, gl, fl))
-                
+                           % (step + 1, self.train_iter, dl, gl, fl))
+
                 # train the model for target domain T
                 j = step % int(mnist_images.shape[0] / self.batch_size)
-                trg_images = mnist_images[j*self.batch_size:(j+1)*self.batch_size]
+                trg_images = mnist_images[j * self.batch_size:(j + 1) * self.batch_size]
                 feed_dict = {model.src_images: src_images, model.trg_images: trg_images}
-
-                for train_d_i in range(num_times_train_d):
-                    sess.run(model.d_train_op_trg, feed_dict)
-                    sess.run(model.d_clip_ops, feed_dict)
-                    sess.run(model.d_train_op_trg, feed_dict)
-                    sess.run(model.d_clip_ops, feed_dict)
+                sess.run(model.d_train_op_trg, feed_dict)
+                sess.run(model.d_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
 
-                if (step+1) % 10 == 0:
+                if (step + 1) % 10 == 0:
                     summary, dl, gl = sess.run([model.summary_op_trg, \
-                        model.d_loss_trg, model.g_loss_trg], feed_dict)
+                                                model.d_loss_trg, model.g_loss_trg], feed_dict)
                     summary_writer.add_summary(summary, step)
                     print ('[Target] step: [%d/%d] d_loss: [%.6f] g_loss: [%.6f]' \
-                               %(step+1, self.train_iter, dl, gl))
+                           % (step + 1, self.train_iter, dl, gl))
 
-                if (step+1) % 200 == 0:
-                    saver.save(sess, os.path.join(self.model_save_path, 'dtn'), global_step=step+1)
-                    print ('model/dtn-%d saved' %(step+1))
-                
+                if (step + 1) % 200 == 0:
+                    saver.save(sess, os.path.join(self.model_save_path, 'dtn'), global_step=step + 1)
+                    print ('model/dtn-%d saved' % (step + 1))
+
     def eval(self):
         # build model
         model = self.model
@@ -208,7 +198,7 @@ class Solver(object):
                 self.test_model = ckpt.model_checkpoint_path
                 print("using latest checkpoint instead!")
             else:
-                print("loading from %s" %self.test_model)
+                print("loading from %s" % self.test_model)
 
             # load trained parameters
             print ('loading test model..')
@@ -218,12 +208,13 @@ class Solver(object):
             print ('start sampling..!')
             for i in range(self.sample_iter):
                 # train model for source domain S
-                batch_images = svhn_images[i*self.batch_size:(i+1)*self.batch_size]
+                batch_images = svhn_images[i * self.batch_size:(i + 1) * self.batch_size]
                 feed_dict = {model.images: batch_images}
                 sampled_batch_images = sess.run(model.sampled_images, feed_dict)
 
                 # merge and save source images and sampled target images
                 merged = self.merge_images(batch_images, sampled_batch_images)
-                path = os.path.join(self.sample_save_path, 'sample-%d-to-%d.png' %(i*self.batch_size, (i+1)*self.batch_size))
+                path = os.path.join(self.sample_save_path,
+                                    'sample-%d-to-%d.png' % (i * self.batch_size, (i + 1) * self.batch_size))
                 scipy.misc.imsave(path, merged)
-                print ('saved %s' %path)
+                print ('saved %s' % path)

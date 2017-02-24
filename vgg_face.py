@@ -63,8 +63,8 @@ def vgg_face(param_path, input_maps):
     return network, average_image, class_names
 
 
-def vgg_face_trainable(param_path, input_maps):
-    with tf.variable_scope('vgg_face'):
+def vgg_face_trainable(param_path, input_maps, reuse = False):
+    with tf.variable_scope('vgg_face', reuse=reuse):
         data = loadmat(param_path)
 
         # read meta info
@@ -90,12 +90,16 @@ def vgg_face_trainable(param_path, input_maps):
                     padding = 'SAME'
                 stride = layer[0]['stride'][0][0]
                 kernel, bias = layer[0]['weights'][0][0]
-                # kernel = np.transpose(kernel, (1, 0, 2, 3))
                 bias = np.squeeze(bias).reshape(-1)
-                conv = tf.nn.conv2d(current, tf.constant(kernel),
+                kernel = tf.get_variable(name=name+'_kernel',initializer=kernel)
+                bias = tf.get_variable(name=name+'_bias',initializer=bias)
+                # kernel = np.transpose(kernel, (1, 0, 2, 3))
+                # conv = tf.nn.conv2d(current, tf.constant(kernel),
+                #                     strides=(1, stride[0], stride[0], 1), padding=padding)
+                conv = tf.nn.conv2d(current, kernel,
                                     strides=(1, stride[0], stride[0], 1), padding=padding)
                 current = tf.nn.bias_add(conv, bias)
-                print name, 'stride:', stride, 'kernel size:', np.shape(kernel)
+                print name, 'stride:', stride, 'kernel size:', np.shape(kernel), 'output_shape:', str(current.get_shape().as_list())
             elif layer_type == 'relu':
                 current = tf.nn.relu(current)
                 print name
