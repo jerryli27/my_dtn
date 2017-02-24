@@ -135,14 +135,15 @@ class Solver(object):
             print ('start training..!')
             f_interval = 15
             for step in range(self.train_iter+1):
-                
+                num_times_train_d = 100 if step < 25 or step % 100 == 0 else 5
                 i = step % int(svhn_images.shape[0] / self.batch_size)
                 # train the model for source domain S
                 src_images = svhn_images[i*self.batch_size:(i+1)*self.batch_size]
                 feed_dict = {model.src_images: src_images}
 
-                sess.run(model.d_train_op_src, feed_dict)
-                sess.run(model.d_clip_ops, feed_dict)
+                for train_d_i in range(num_times_train_d):
+                    sess.run(model.d_train_op_src, feed_dict)
+                    sess.run(model.d_clip_ops, feed_dict)
                 sess.run([model.g_train_op_src], feed_dict)
                 sess.run([model.g_train_op_src], feed_dict) 
                 sess.run([model.g_train_op_src], feed_dict) 
@@ -167,10 +168,12 @@ class Solver(object):
                 j = step % int(mnist_images.shape[0] / self.batch_size)
                 trg_images = mnist_images[j*self.batch_size:(j+1)*self.batch_size]
                 feed_dict = {model.src_images: src_images, model.trg_images: trg_images}
-                sess.run(model.d_train_op_trg, feed_dict)
-                sess.run(model.d_clip_ops, feed_dict)
-                sess.run(model.d_train_op_trg, feed_dict)
-                sess.run(model.d_clip_ops, feed_dict)
+
+                for train_d_i in range(num_times_train_d):
+                    sess.run(model.d_train_op_trg, feed_dict)
+                    sess.run(model.d_clip_ops, feed_dict)
+                    sess.run(model.d_train_op_trg, feed_dict)
+                    sess.run(model.d_clip_ops, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)
                 sess.run(model.g_train_op_trg, feed_dict)

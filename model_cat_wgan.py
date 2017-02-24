@@ -1,6 +1,8 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import vgg_face
 
+VGG_FACE_PATH = 'vgg-face.mat'
 
 class DTN(object):
     """Domain Transfer Network
@@ -18,31 +20,36 @@ class DTN(object):
             # For mnist dataset, replicate the gray scale image 3 times.
             images = tf.image.grayscale_to_rgb(images)
         
-        with tf.variable_scope('content_extractor', reuse=reuse):
-            with slim.arg_scope([slim.conv2d], padding='SAME', activation_fn=None, weights_initializer=tf.contrib.layers.xavier_initializer()):
-                with slim.arg_scope([slim.batch_norm], decay=0.95, center=True, scale=True, 
-                                    activation_fn=tf.nn.relu, is_training=(self.mode=='train' or self.mode=='pretrain')):
+        # with tf.variable_scope('content_extractor', reuse=reuse):
+        #     with slim.arg_scope([slim.conv2d], padding='SAME', activation_fn=None, weights_initializer=tf.contrib.layers.xavier_initializer()):
+        #         with slim.arg_scope([slim.batch_norm], decay=0.95, center=True, scale=True,
+        #                             activation_fn=tf.nn.relu, is_training=(self.mode=='train' or self.mode=='pretrain')):
+        #
+        #             net = slim.conv2d(images, 64, [3, 3], stride=1, scope='conv1_1')   # (batch_size, 32, 32, 64)
+        #             net = slim.batch_norm(net, scope='bn1_1')
+        #             net = slim.conv2d(net, 64, [4, 4], stride=2, scope='conv1_2')   # (batch_size, 16, 16, 64)
+        #             net = slim.batch_norm(net, scope='bn1_2')
+        #             net = slim.conv2d(net, 128, [3, 3], stride=1, scope='conv2_1')     # (batch_size, 16, 16, 128)
+        #             net = slim.batch_norm(net, scope='bn2_1')
+        #             net = slim.conv2d(net, 128, [4, 4], stride=2, scope='conv2_2')   # (batch_size, 8, 8, 128)
+        #             net = slim.batch_norm(net, scope='bn2_2')
+        #             net = slim.conv2d(net, 256, [3, 3], stride=1, scope='conv3_1')     # (batch_size, 8, 8, 256)
+        #             net = slim.batch_norm(net, scope='bn3_1')
+        #             net = slim.conv2d(net, 256, [4, 4], stride=2, scope='conv3_2')     # (batch_size, 4, 4, 256)
+        #             net = slim.batch_norm(net, scope='bn3_2')
+        #             net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv4_1')   # (batch_size, 4, 4, 512)
+        #             net = slim.batch_norm(net, scope='bn4_1')
+        #             net = slim.conv2d(net, 512, [4, 4], stride=2, padding='VALID', scope='conv4_2')   # (batch_size, 1, 1, 512)
+        #             net = slim.batch_norm(net, activation_fn=tf.nn.tanh, scope='bn4_2')
+        #             if self.mode == 'pretrain':
+        #                 net = slim.conv2d(net, self.num_classes, [1, 1], padding='VALID', scope='out')
+        #                 net = slim.flatten(net)
+        #             return net
+        images_preprocessed = (images + 1)  * 127.5 - vgg_face.VGG_FACE_MEAN
+        network, average_image, class_names = vgg_face.vgg_face_trainable(VGG_FACE_PATH,images_preprocessed)
+        # return network['fc6']
+        return network['conv5_3']
 
-                    net = slim.conv2d(images, 64, [3, 3], stride=1, scope='conv1_1')   # (batch_size, 32, 32, 64)
-                    net = slim.batch_norm(net, scope='bn1_1')
-                    net = slim.conv2d(net, 64, [3, 3], stride=2, scope='conv1_2')   # (batch_size, 16, 16, 64)
-                    net = slim.batch_norm(net, scope='bn1_2')
-                    net = slim.conv2d(net, 128, [3, 3], stride=1, scope='conv2_1')     # (batch_size, 16, 16, 128)
-                    net = slim.batch_norm(net, scope='bn2_1')
-                    net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv2_2')   # (batch_size, 8, 8, 128)
-                    net = slim.batch_norm(net, scope='bn2_2')
-                    net = slim.conv2d(net, 256, [3, 3], stride=1, scope='conv3_1')     # (batch_size, 8, 8, 256)
-                    net = slim.batch_norm(net, scope='bn3_1')
-                    net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3_2')     # (batch_size, 4, 4, 256)
-                    net = slim.batch_norm(net, scope='bn3_2')
-                    net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv4_1')   # (batch_size, 4, 4, 512)
-                    net = slim.batch_norm(net, scope='bn4_1')
-                    net = slim.conv2d(net, 512, [4, 4], stride=2, padding='VALID', scope='conv4_2')   # (batch_size, 1, 1, 512)
-                    net = slim.batch_norm(net, activation_fn=tf.nn.tanh, scope='bn4_2')
-                    if self.mode == 'pretrain':
-                        net = slim.conv2d(net, self.num_classes, [1, 1], padding='VALID', scope='out')
-                        net = slim.flatten(net)
-                    return net
                 
     def generator(self, inputs, reuse=False):
         # inputs: (batch, 1, 1, 128)
@@ -56,15 +63,15 @@ class DTN(object):
                         net = slim.conv2d_transpose(inputs, 512, [4, 4], padding='VALID',
                                                     scope='conv_transpose1_1')  # (batch_size, 4, 4, 512)
                         net = slim.batch_norm(net, scope='bn1_1')
-                        net = slim.conv2d(net, 512, [3, 3], scope='conv_transpose1_2')   # (batch_size, 4, 4, 512)
+                        net = slim.conv2d(net, 512, [1, 1], scope='conv_transpose1_2')   # (batch_size, 4, 4, 512)
                         net = slim.batch_norm(net, scope='bn1_2')
                         net = slim.conv2d_transpose(net, 256, [3, 3], scope='conv_transpose2_1')  # (batch_size, 8, 8, 256)
                         net = slim.batch_norm(net, scope='bn2')
-                        net = slim.conv2d(net, 256, [3, 3], scope='conv_transpose2_2')   # (batch_size, 4, 4, 512)
+                        net = slim.conv2d(net, 256, [1, 1], scope='conv_transpose2_2')   # (batch_size, 4, 4, 512)
                         net = slim.batch_norm(net, scope='bn2_2')
                         net = slim.conv2d_transpose(net, 128, [3, 3], scope='conv_transpose3_1')  # (batch_size, 16, 16, 128)
                         net = slim.batch_norm(net, scope='bn3')
-                        net = slim.conv2d(net, 128, [3, 3], scope='conv_transpose3_2')   # (batch_size, 4, 4, 512)
+                        net = slim.conv2d(net, 128, [1, 1], scope='conv_transpose3_2')   # (batch_size, 4, 4, 512)
                         net = slim.batch_norm(net, scope='bn3_2')
                         net = slim.conv2d_transpose(net, 3, [3, 3], activation_fn=tf.nn.tanh, scope='conv_transpose4')   # (batch_size, 32, 32, 3)
                         return net
