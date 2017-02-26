@@ -27,12 +27,15 @@ flags.DEFINE_integer('pretrain_iter', 20000, "Number of iteration to run the pre
 flags.DEFINE_integer('train_iter', 5000, "Number of iteration to run the train mode code.")
 flags.DEFINE_integer('sample_iter', 100, "Number of iteration to run the sample mode code.")
 flags.DEFINE_integer('hw', 32, "Height and width of input images.")
+flags.DEFINE_integer('batch_size', 100, "batch_size")
+flags.DEFINE_float('lr', 0.0003,'Learning rate.')
+flags.DEFINE_float('alpha', 15.0,'Learning rate.')
+flags.DEFINE_float('beta', 15.0,'Learning rate.')
 FLAGS = flags.FLAGS
 
 def main(_):
-
-    model = DTN(mode=FLAGS.mode, learning_rate=0.0003, num_classes=FLAGS.num_classes, hw=FLAGS.hw)
-    solver = Solver(model, batch_size=100, pretrain_iter=FLAGS.pretrain_iter, train_iter=FLAGS.train_iter, sample_iter=FLAGS.sample_iter,
+    model = DTN(mode=FLAGS.mode, learning_rate=FLAGS.lr, num_classes=FLAGS.num_classes, hw=FLAGS.hw, alpha=FLAGS.alpha, beta=FLAGS.beta)
+    solver = Solver(model, batch_size=FLAGS.batch_size, pretrain_iter=FLAGS.pretrain_iter, train_iter=FLAGS.train_iter, sample_iter=FLAGS.sample_iter,
                     source_dir=FLAGS.source_dir, target_dir=FLAGS.target_dir, model_save_path=FLAGS.model_save_path, sample_save_path=FLAGS.sample_save_path)
 
     # create directories if not exist

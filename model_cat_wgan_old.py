@@ -5,11 +5,13 @@ import tensorflow.contrib.slim as slim
 class DTN(object):
     """Domain Transfer Network
     """
-    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32):
+    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32, alpha=15, beta=15):
         self.mode = mode
         self.learning_rate = learning_rate
         self.num_classes = num_classes
         self.hw = hw
+        self.alpha = alpha
+        self.beta=beta
         
     def content_extractor(self, images, reuse=False):
         # images: (batch, 32, 32, 3) or (batch, 32, 32, 1)
@@ -137,7 +139,7 @@ class DTN(object):
             # self.g_loss_src = slim.losses.sigmoid_cross_entropy(self.logits, tf.ones_like(self.logits))
             self.d_loss_src = tf.reduce_mean(self.logits)
             self.g_loss_src = - tf.reduce_mean(self.logits)
-            self.f_loss_src = tf.reduce_mean(tf.square(self.fx - self.fgfx)) * 15.0
+            self.f_loss_src = tf.reduce_mean(tf.square(self.fx - self.fgfx)) * self.alpha
             
             # optimizer
             self.d_optimizer_src = tf.train.AdamOptimizer(self.learning_rate)
@@ -182,7 +184,7 @@ class DTN(object):
             self.d_loss_real_trg = - tf.reduce_mean(self.logits_real)
             self.d_loss_trg = self.d_loss_fake_trg + self.d_loss_real_trg
             self.g_loss_fake_trg = - self.logits_fake
-            self.g_loss_const_trg = tf.reduce_mean(tf.square(self.trg_images - self.reconst_images)) * 15.0
+            self.g_loss_const_trg = tf.reduce_mean(tf.square(self.trg_images - self.reconst_images)) * self.beta
             self.g_loss_trg = self.g_loss_fake_trg + self.g_loss_const_trg
             
             # optimizer
