@@ -183,7 +183,7 @@ class DTN(object):
             self.d_loss_fake_trg = tf.reduce_mean(self.logits_fake)
             self.d_loss_real_trg = - tf.reduce_mean(self.logits_real)
             self.d_loss_trg = self.d_loss_fake_trg + self.d_loss_real_trg
-            self.g_loss_fake_trg = - self.logits_fake
+            self.g_loss_fake_trg = - tf.reduce_mean(self.logits_fake)
             self.g_loss_const_trg = tf.reduce_mean(tf.square(self.trg_images - self.reconst_images)) * self.beta
             self.g_loss_trg = self.g_loss_fake_trg + self.g_loss_const_trg
             

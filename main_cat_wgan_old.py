@@ -12,8 +12,8 @@ anime character face dataset http://www.nurs.or.jp/~nagadomi/animeface-character
 """
 
 import tensorflow as tf
-from model_cat_wgan import DTN
-from solver_cat_wgan import Solver
+from model_cat_wgan_old import DTN
+from solver_cat_wgan_old import Solver
 
 flags = tf.app.flags
 flags.DEFINE_string('mode', 'train', "'pretrain', 'train' or 'eval'")
