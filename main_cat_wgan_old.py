@@ -9,6 +9,8 @@ cat face paper http://mmlab.ie.cuhk.edu.hk/archive/2008/ECCV08_CatDetection.pdf
 another cat face database https://www.datainnovation.org/2014/08/10000-cat-pictures-for-science/ (can't open the link)
 cat and dog images with face annotation and pixel level annotation http://www.robots.ox.ac.uk/~vgg/data/pets/
 anime character face dataset http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/README.html
+IMDB_WIKI face dataset https://data.vision.ee.ethz.ch/cvl/rrothe/imdb-wiki/
+anime face detector https://github.com/nagadomi/lbpcascade_animeface.git
 """
 
 import tensorflow as tf
@@ -53,3 +55,11 @@ def main(_):
 
 if __name__ == '__main__':
     tf.app.run()
+
+"""
+python main_cat_wgan_old.py --mode=train --model_save_path=model_female_to_anime_32_alpha_1 --sample_save_path=sample_female_to_anime_32_alpha_1 --source_dir=human_32_female --target_dir=/mnt/data_drive/home/ubuntu/datasets/anime_face_32 --alpha=1.0
+python main_cat_wgan_old.py --mode=train --model_save_path=model_human_to_cat_32_alpha_1 --sample_save_path=sample_human_to_cat_32_alpha_1 --source_dir=human --target_dir=cat --alpha=1.0
+
+python main_cat_wgan_old.py --mode=pretrain --model_save_path=model_pretrain_human_128 --sample_save_path=sample_pretrain_human_128 --source_dir=/mnt/data_drive/home/ubuntu/datasets/human_128 --target_dir=/mnt/data_drive/home/ubuntu/datasets/human_128 --alpha=1.0
+
+"""

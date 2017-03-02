@@ -2,3 +2,4 @@
 
 python main_cat_wgan_old.py --mode=eval --model_save_path=model_human_sex_32_alpha_1 --sample_save_path=sample_human_sex_32_alpha_1 --source_dir=human_32_male --target_dir=human_32_female --alpha=1.0
 # alpha = 15 also works, but a little less better in my opinion.
+# Substituting the target directory with cat face dataset also works.

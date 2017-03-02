@@ -132,16 +132,16 @@ class DTN(object):
             self.images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
 
             # source domain (svhn to mnist)
-            self.fx, _ = self.content_extractor(self.images)
-            self.sampled_images = self.generator(self.fx)
+            self.fx, self.content_extractor_layers = self.content_extractor(self.images)
+            self.sampled_images = self.generator(self.fx, self.content_extractor_layers)
 
         elif self.mode == 'train':
             self.src_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
             self.trg_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'mnist_images')
             
             # source domain (svhn to mnist)
-            self.fx, _ = self.content_extractor(self.src_images)
-            self.fake_images = self.generator(self.fx)
+            self.fx, self.content_extractor_layers = self.content_extractor(self.src_images)
+            self.fake_images = self.generator(self.fx, self.content_extractor_layers)
             self.logits = self.discriminator(self.fake_images)
             self.fgfx, _ = self.content_extractor(self.fake_images, reuse=True)
 
@@ -183,8 +183,8 @@ class DTN(object):
                                                     sampled_images_summary])
             
             # target domain (mnist)
-            self.fx = self.content_extractor(self.trg_images, reuse=True)
-            self.reconst_images = self.generator(self.fx, reuse=True)
+            self.fx, _ = self.content_extractor(self.trg_images, reuse=True)
+            self.reconst_images = self.generator(self.fx, self.content_extractor_layers, reuse=True)
             self.logits_fake = self.discriminator(self.reconst_images, reuse=True)
             self.logits_real = self.discriminator(self.trg_images, reuse=True)
             

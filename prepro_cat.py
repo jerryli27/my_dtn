@@ -279,48 +279,48 @@ def main():
     # save_pickle(test, os.path.join(save_dir,'test.pkl'))
 
 
-    # The following is for datasets that has all images in subdirectories representing their categories.
-    # IT also separates male actors from female ones.
-    # Human dataset
-
-    for s in ['male','female']:
-        rootdir = '/mnt/tf_drive/home/ubuntu/PycharmProjects/facescrub/download/'  # 'facescrub/'
-        hw = 128
-        save_dir = '/mnt/data_drive/home/ubuntu/datasets/human_%d_%s/' %(hw,s)
-        with open('facescrub_actors_names.txt' if s == 'male' else 'facescrub_actresses_names.txt', 'r') as f:
-            current_sex_actors = set([name.strip('\n') for name in f.readlines()])
-
-
-        face_dirs = [d for d in get_all_image_paths_in_dir(rootdir) if d.split('/')[-2] == "face" and d.split('/')[-3] in current_sex_actors]
-        face_categories = [get_category_name(d) for d in face_dirs]
-        face_unique_categories = sorted(list(set(face_categories)))
-        assert len(face_unique_categories) == 530 / 2 # Uncomment this for facescrub dataset sanity check.
-        print("Number of unique categories for human face: %d. Number of images %d" %(len(face_unique_categories), len(face_dirs)))
-        assert face_unique_categories > 0 and face_dirs > 0
-        face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
-
-        random_index = list(range(len(face_dirs)))
-        random.shuffle(random_index)
-        num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
-        train_index = random_index[:num_train]
-        test_index = random_index[num_train:]
-
-        face_train_dirs = [face_dirs[i] for i in train_index]
-        face_train = np.array(read_and_resize_images(face_train_dirs, height=hw, width=hw), dtype=np.uint8)
-        assert face_train.shape[1] == hw and face_train.shape[2] == hw and face_train.shape[3] == 3
-        face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]], dtype=np.uint8)
-        train = {'X': face_train, 'y': face_train_label}
-
-        face_test_dirs = [face_dirs[i] for i in test_index]
-        face_test = np.array(read_and_resize_images(face_test_dirs, height=hw, width=hw), dtype=np.uint8)
-        assert face_test.shape[1] == hw and face_test.shape[2] == hw and face_test.shape[3] == 3
-        face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]], dtype=np.uint8)
-        test = {'X': face_test, 'y': face_test_label}
-
-        if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
-        save_pickle(train, os.path.join(save_dir,'train.pkl'))
-        save_pickle(test, os.path.join(save_dir,'test.pkl'))
+    # # The following is for datasets that has all images in subdirectories representing their categories.
+    # # IT also separates male actors from female ones.
+    # # Human dataset
+    #
+    # for s in ['male','female']:
+    #     rootdir = '/mnt/tf_drive/home/ubuntu/PycharmProjects/facescrub/download/'  # 'facescrub/'
+    #     hw = 128
+    #     save_dir = '/mnt/data_drive/home/ubuntu/datasets/human_%d_%s/' %(hw,s)
+    #     with open('facescrub_actors_names.txt' if s == 'male' else 'facescrub_actresses_names.txt', 'r') as f:
+    #         current_sex_actors = set([name.strip('\n') for name in f.readlines()])
+    #
+    #
+    #     face_dirs = [d for d in get_all_image_paths_in_dir(rootdir) if d.split('/')[-2] == "face" and d.split('/')[-3] in current_sex_actors]
+    #     face_categories = [get_category_name(d) for d in face_dirs]
+    #     face_unique_categories = sorted(list(set(face_categories)))
+    #     assert len(face_unique_categories) == 530 / 2 # Uncomment this for facescrub dataset sanity check.
+    #     print("Number of unique categories for human face: %d. Number of images %d" %(len(face_unique_categories), len(face_dirs)))
+    #     assert face_unique_categories > 0 and face_dirs > 0
+    #     face_unique_categories_dict = {face_unique_categories[i]:i for i in range(len(face_unique_categories))}
+    #
+    #     random_index = list(range(len(face_dirs)))
+    #     random.shuffle(random_index)
+    #     num_train = len(face_dirs) * 90 / 100  # Select 90% of data as training data.
+    #     train_index = random_index[:num_train]
+    #     test_index = random_index[num_train:]
+    #
+    #     face_train_dirs = [face_dirs[i] for i in train_index]
+    #     face_train = np.array(read_and_resize_images(face_train_dirs, height=hw, width=hw), dtype=np.uint8)
+    #     assert face_train.shape[1] == hw and face_train.shape[2] == hw and face_train.shape[3] == 3
+    #     face_train_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in train_index]], dtype=np.uint8)
+    #     train = {'X': face_train, 'y': face_train_label}
+    #
+    #     face_test_dirs = [face_dirs[i] for i in test_index]
+    #     face_test = np.array(read_and_resize_images(face_test_dirs, height=hw, width=hw), dtype=np.uint8)
+    #     assert face_test.shape[1] == hw and face_test.shape[2] == hw and face_test.shape[3] == 3
+    #     face_test_label = np.array([face_unique_categories_dict[d] for d in [face_categories[i] for i in test_index]], dtype=np.uint8)
+    #     test = {'X': face_test, 'y': face_test_label}
+    #
+    #     if not os.path.exists(save_dir):
+    #         os.mkdir(save_dir)
+    #     save_pickle(train, os.path.join(save_dir,'train.pkl'))
+    #     save_pickle(test, os.path.join(save_dir,'test.pkl'))
     #
     # # Anime face
     # # rootdir = '/mnt/data_drive/home/ubuntu/datasets/animeface-character-dataset/thumb/'  # 'facescrub/'
@@ -364,6 +364,49 @@ def main():
     # #
     # # # load_cat_and_dog(32, save_dir="cnd_32")
     # # # load_cat_and_dog(128, save_dir="cnd_128")
+
+
+    # # The following is for combining the human and the anime dataset.
+    #
+    # human_dir = '/mnt/tf_drive/home/ubuntu/PycharmProjects/my_dtn/human/'
+    # anime_dir = '/mnt/data_drive/home/ubuntu/datasets/anime_face_32/'
+    # save_dir = '/mnt/data_drive/home/ubuntu/datasets/human_and_anime_face_32/'
+    # num_human_category = 530
+    # for category in ("train", "test"):
+    #     with open(human_dir + category + ".pkl", 'rb') as fh:
+    #         human = pickle.load(fh)
+    #     with open(anime_dir + category + ".pkl", 'rb') as ah:
+    #         anime = pickle.load(ah)
+    #     images = np.concatenate((human['X'], anime['X']), axis=0)
+    #     labels =  np.concatenate((human['y'], anime['y'] + num_human_category), axis=0)
+    #     if not os.path.exists(save_dir):
+    #         os.mkdir(save_dir)
+    #     save_pickle({'X': images, 'y': labels}, os.path.join(save_dir, category+'.pkl'))
+
+    # The following is for splitting the 128 dataset so that it can be fit into the memory.
+
+    human_dir = '/mnt/data_drive/home/ubuntu/datasets/human_128/'
+    save_dir = '/mnt/data_drive/home/ubuntu/datasets/human_128_split_half/'
+    num_human_category = 530
+    with open(human_dir + 'train' + ".pkl", 'rb') as fh:
+        human_train = pickle.load(fh)
+    with open(human_dir + 'test' + ".pkl", 'rb') as ah:
+        human_test = pickle.load(ah)
+    images = np.concatenate((human_train['X'], human_test['X']), axis=0)
+    labels =  np.concatenate((human_train['y'], human_test['y'] + num_human_category), axis=0)
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    split = 0.9
+    new_train_images = images[:int(human_train['X'].shape[0] * split)]
+    new_train_labels = labels[:int(human_train['y'].shape[0] * split)]
+    new_test_images = images[int(human_train['X'].shape[0] * split):]
+    new_test_labels = labels[int(human_train['y'].shape[0] * split):]
+    assert new_train_images.shape[0] == new_train_labels.shape[0] and new_test_images.shape[0] == new_test_labels.shape[0]
+    print("Number of train images after the split: %d, number of test images: %d" %(new_train_images.shape[0], new_test_images.shape[0]))
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    save_pickle({'X': new_train_images, 'y': new_train_labels}, os.path.join(save_dir, 'train'+'.pkl'))
+    save_pickle({'X': new_test_images, 'y': new_test_labels}, os.path.join(save_dir, 'test'+'.pkl'))
     # pass
 
     

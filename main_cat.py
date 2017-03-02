@@ -9,6 +9,7 @@ cat face paper http://mmlab.ie.cuhk.edu.hk/archive/2008/ECCV08_CatDetection.pdf
 another cat face database https://www.datainnovation.org/2014/08/10000-cat-pictures-for-science/ (can't open the link)
 cat and dog images with face annotation and pixel level annotation http://www.robots.ox.ac.uk/~vgg/data/pets/
 anime character face dataset http://www.nurs.or.jp/~nagadomi/animeface-character-dataset/README.html
+IMDB_WIKI face dataset https://data.vision.ee.ethz.ch/cvl/rrothe/imdb-wiki/
 """
 
 import tensorflow as tf

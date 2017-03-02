@@ -186,6 +186,9 @@ class Solver(object):
                     saver.save(sess, os.path.join(self.model_save_path, 'dtn'), global_step=step + 1)
                     print ('model/dtn-%d saved' % (step + 1))
 
+            saver.save(sess, os.path.join(self.model_save_path, 'dtn'), global_step=step + 1)
+            print ('model/dtn-%d saved' % (step + 1))
+
     def eval(self):
         # build model
         model = self.model
