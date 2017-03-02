@@ -41,7 +41,7 @@ def block35(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
             tower_conv2_0 = slim.conv2d(net, 32, 1, scope='Conv2d_0a_1x1')
             tower_conv2_1 = slim.conv2d(tower_conv2_0, 32, 3, scope='Conv2d_0b_3x3')
             tower_conv2_2 = slim.conv2d(tower_conv2_1, 32, 3, scope='Conv2d_0c_3x3')
-        mixed = tf.concat([tower_conv, tower_conv1_1, tower_conv2_2], 3)
+        mixed = tf.concat(3,[tower_conv, tower_conv1_1, tower_conv2_2])
         up = slim.conv2d(mixed, net.get_shape()[3], 1, normalizer_fn=None,
                          activation_fn=None, scope='Conv2d_1x1')
         net += scale * up
@@ -62,7 +62,7 @@ def block17(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
                                         scope='Conv2d_0b_1x7')
             tower_conv1_2 = slim.conv2d(tower_conv1_1, 128, [7, 1],
                                         scope='Conv2d_0c_7x1')
-        mixed = tf.concat([tower_conv, tower_conv1_2], 3)
+        mixed = tf.concat(3, [tower_conv, tower_conv1_2])
         up = slim.conv2d(mixed, net.get_shape()[3], 1, normalizer_fn=None,
                          activation_fn=None, scope='Conv2d_1x1')
         net += scale * up
@@ -83,7 +83,7 @@ def block8(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
                                         scope='Conv2d_0b_1x3')
             tower_conv1_2 = slim.conv2d(tower_conv1_1, 192, [3, 1],
                                         scope='Conv2d_0c_3x1')
-        mixed = tf.concat([tower_conv, tower_conv1_2], 3)
+        mixed = tf.concat(3, [tower_conv, tower_conv1_2])
         up = slim.conv2d(mixed, net.get_shape()[3], 1, normalizer_fn=None,
                          activation_fn=None, scope='Conv2d_1x1')
         net += scale * up
@@ -106,7 +106,7 @@ def reduction_a(net, k, l, m, n):
     with tf.variable_scope('Branch_2'):
         tower_pool = slim.max_pool2d(net, 3, stride=2, padding='VALID',
                                      scope='MaxPool_1a_3x3')
-    net = tf.concat([tower_conv, tower_conv1_2, tower_pool], 3)
+    net = tf.concat(3, [tower_conv, tower_conv1_2, tower_pool])
     return net
 
 
@@ -128,8 +128,8 @@ def reduction_b(net):
     with tf.variable_scope('Branch_3'):
         tower_pool = slim.max_pool2d(net, 3, stride=2, padding='VALID',
                                      scope='MaxPool_1a_3x3')
-    net = tf.concat([tower_conv_1, tower_conv1_1,
-                     tower_conv2_2, tower_pool], 3)
+    net = tf.concat(3, [tower_conv_1, tower_conv1_1,
+                     tower_conv2_2, tower_pool])
     return net
 
 
