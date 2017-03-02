@@ -118,7 +118,7 @@ class Solver(object):
             tf.global_variables_initializer().run()
             # restore variables of F
             print ('loading pretrained model F..')
-            variables_to_restore = slim.get_model_variables(scope='content_extractor')
+            variables_to_restore = slim.get_model_variables(scope='InceptionResnetV1')
             restorer = tf.train.Saver(variables_to_restore)
             # Get latest checkpoint instead
             ckpt = tf.train.get_checkpoint_state(self.model_save_path)
@@ -129,7 +129,7 @@ class Solver(object):
                 print("loading from %s" % self.pretrained_model)
             restorer.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(logdir=self.log_dir, graph=tf.get_default_graph())
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(max_to_keep=2)
 
             print ('start training..!')
             f_interval = 15

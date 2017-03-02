@@ -24,8 +24,9 @@ class DTN(object):
             images = tf.image.grayscale_to_rgb(images)
         if images.get_shape()[2] <64 or images.get_shape()[1] < 64:
             print("WARNING:resnet may not support images with small size.")
-        prelogits, _ = inference(images, keep_probability=1.0)
-        return prelogits
+        prelogits, _ = inference(images, keep_probability=1.0,reuse=reuse)
+        ret = tf.expand_dims(tf.expand_dims(prelogits, axis=1), axis=2)
+        return ret
                 
     def generator(self, inputs, reuse=False):
         # inputs: (batch, 1, 1, 128)
@@ -146,7 +147,7 @@ class DTN(object):
             t_vars = tf.trainable_variables()
             d_vars = [var for var in t_vars if 'discriminator' in var.name]
             g_vars = [var for var in t_vars if 'generator' in var.name]
-            f_vars = [var for var in t_vars if 'content_extractor' in var.name]
+            f_vars = [var for var in t_vars if 'InceptionResnetV1' in var.name]
 
             # TODO: add weight clipping
 

@@ -130,7 +130,7 @@ class Solver(object):
                 print("loading from %s" %self.pretrained_model)
             restorer.restore(sess, self.pretrained_model)
             summary_writer = tf.summary.FileWriter(logdir=self.log_dir, graph=tf.get_default_graph())
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(max_to_keep=2)
 
             print ('start training..!')
             f_interval = 15

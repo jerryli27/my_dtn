@@ -212,7 +212,7 @@ class Solver(object):
 
             # load trained parameters
             print ('loading test model..')
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(max_to_keep=2)
             saver.restore(sess, self.test_model)
 
             print ('start sampling..!')

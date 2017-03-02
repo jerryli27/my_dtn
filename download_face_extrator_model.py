@@ -57,3 +57,6 @@ if __name__=="__main__":
     pretrained_model_name = '20170216-091149'
     download_and_extract_model(pretrained_model_name, 'data/')
     model_file = os.path.join('data', pretrained_model_name, 'model-%s.ckpt-250000' % pretrained_model_name)
+    with open(os.path.join('data', pretrained_model_name,'checkpoint'), 'w') as f:
+        f.write("model_checkpoint_path: \"model-%s.ckpt-250000\"\nall_model_checkpoint_paths: \"model-%s.ckpt-250000\""
+                %(pretrained_model_name,pretrained_model_name))
