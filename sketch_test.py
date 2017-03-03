@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import cv2
 from PIL import Image
 from model_cat_wgan_resnet_sketch_loss import *
@@ -29,8 +31,8 @@ class SketchTest(tf.test.TestCase):
     def test_sketch_generation(self):
         with self.test_session() as sess:
             batch_size = 1
-            height = 300
-            width = 300
+            height = None
+            width = None
             num_features = 3
 
             input_layer = tf.placeholder(dtype=tf.float32, shape=(batch_size, height, width, num_features))
@@ -48,7 +50,7 @@ class SketchTest(tf.test.TestCase):
 
             sess.run(tf.initialize_all_variables())
 
-            input_image_path = "/home/xor/datasets/download/Andrea_Anders/0d358f8e6862151c5b06aec9d3530cdf08e450cc.jpg"
+            input_image_path =  u'/home/xor/pixiv_images/color/Rella (163536)/14080177_p0 - らくがき.jpg'
             feed_input = np.expand_dims(_imread(input_image_path),axis=0)
 
             feed_dict = {input_layer:feed_input}

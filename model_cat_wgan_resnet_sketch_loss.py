@@ -151,12 +151,12 @@ class DTN(object):
         elif self.mode == 'train':
             self.src_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
             self.trg_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'mnist_images')
-            
+
             # source domain (svhn to mnist)
             self.fx = self.content_extractor(self.src_images)
             self.fake_images = self.generator(self.fx)
             self.logits = self.discriminator(self.fake_images)
-            self.fake_sketches = self.sketch_extractor(self.fake_images)
+            self.fake_sketches = self.sketch_extractor((self.fake_images + 1) * 127.5)
             self.fake_sketches_logits = self.discriminator(self.fake_sketches, var_scope='discriminator_sketch')
             self.fgfx = self.content_extractor(self.fake_images, reuse=True)
 
@@ -204,9 +204,9 @@ class DTN(object):
             self.reconst_images = self.generator(self.fx, reuse=True)
             self.logits_fake = self.discriminator(self.reconst_images, reuse=True)
             self.logits_real = self.discriminator(self.trg_images, reuse=True)
-            self.reconst_images_sketches = self.sketch_extractor(self.reconst_images)
+            self.reconst_images_sketches = self.sketch_extractor((self.reconst_images + 1) * 127.5)
             self.reconst_images_sketches_logits = self.discriminator(self.reconst_images_sketches, var_scope='discriminator_sketch', reuse=True)
-            self.trg_images_sketches = self.sketch_extractor(self.trg_images)
+            self.trg_images_sketches = self.sketch_extractor((self.trg_images + 1) * 127.5)
             self.trg_images_sketches_logits = self.discriminator(self.trg_images_sketches, var_scope='discriminator_sketch', reuse=True)
             
             # loss
