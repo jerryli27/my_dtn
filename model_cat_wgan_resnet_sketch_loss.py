@@ -95,13 +95,16 @@ class DTN(object):
                     net = slim.flatten(net)
                     return net
 
-    def sketch_extractor(self, images):
-        # Must feed in images represented in range 0`255.
+    def sketch_extractor(self, images, max_val=1.0, min_val=-1.0):
+        images = (images - min_val) / (max_val - min_val) * 255.0
         image_shape = images.get_shape().as_list()
         if len(image_shape) != 4:
             raise AssertionError("Input image must have shape [batch_size, height, width, 1 or 3]")
         if image_shape[3] == 3:
-            gray_images = tf.image.rgb_to_grayscale(images)
+            # gray_images = tf.image.rgb_to_grayscale(images)
+            rgb_weights = [0.2989, 0.5870, 0.1140]
+            gray_images = tf.reduce_sum(images * rgb_weights, axis=3, keep_dims=True)
+
         elif image_shape[3] == 1:
             gray_images = images
         else:
@@ -116,6 +119,7 @@ class DTN(object):
         dil = tf.nn.dilation2d(gray_images, filt, (1,stride,stride,1), (1,rate,rate,1), padding, name='image_dilated')
         sketch = 255 - tf.abs(gray_images - dil)
         # Did NOT apply a threshold here to clear out the low values because i think it may not be necessary.
+        sketch =  sketch / 255.0 * (max_val - min_val) + min_val
         assert sketch.get_shape().as_list() == gray_images.get_shape().as_list()
         return sketch
                 
@@ -156,7 +160,7 @@ class DTN(object):
             self.fx = self.content_extractor(self.src_images)
             self.fake_images = self.generator(self.fx)
             self.logits = self.discriminator(self.fake_images)
-            self.fake_sketches = self.sketch_extractor((self.fake_images + 1) * 127.5)
+            self.fake_sketches = self.sketch_extractor(self.fake_images )
             self.fake_sketches_logits = self.discriminator(self.fake_sketches, var_scope='discriminator_sketch')
             self.fgfx = self.content_extractor(self.fake_images, reuse=True)
 
@@ -204,9 +208,9 @@ class DTN(object):
             self.reconst_images = self.generator(self.fx, reuse=True)
             self.logits_fake = self.discriminator(self.reconst_images, reuse=True)
             self.logits_real = self.discriminator(self.trg_images, reuse=True)
-            self.reconst_images_sketches = self.sketch_extractor((self.reconst_images + 1) * 127.5)
+            self.reconst_images_sketches = self.sketch_extractor(self.reconst_images)
             self.reconst_images_sketches_logits = self.discriminator(self.reconst_images_sketches, var_scope='discriminator_sketch', reuse=True)
-            self.trg_images_sketches = self.sketch_extractor((self.trg_images + 1) * 127.5)
+            self.trg_images_sketches = self.sketch_extractor(self.trg_images)
             self.trg_images_sketches_logits = self.discriminator(self.trg_images_sketches, var_scope='discriminator_sketch', reuse=True)
             
             # loss

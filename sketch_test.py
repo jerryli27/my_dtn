@@ -37,9 +37,9 @@ class SketchTest(tf.test.TestCase):
 
             input_layer = tf.placeholder(dtype=tf.float32, shape=(batch_size, height, width, num_features))
             dtn = DTN()
-            input_layer_processed = input_layer # / 127.5 - 1
+            input_layer_processed = input_layer / 127.5 - 1
             sketch = dtn.sketch_extractor(input_layer_processed)
-            sketch_unprocessed = sketch# (sketch + 1) * 127.5
+            sketch_unprocessed = (sketch + 1) * 127.5
 
 
             image_shape = input_layer.get_shape().as_list()
