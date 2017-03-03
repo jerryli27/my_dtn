@@ -19,6 +19,7 @@ class DTN(object):
         assert hw==128
         
     def content_extractor(self, images, reuse=False):
+        # Assuming standard input -1~1, scale them to 0`255, which I think is the correct scale...
         # images: (batch, 32, 32, 3) or (batch, 32, 32, 1)
         
         if images.get_shape()[3] == 1:
@@ -26,7 +27,7 @@ class DTN(object):
             images = tf.image.grayscale_to_rgb(images)
         if images.get_shape()[2] <64 or images.get_shape()[1] < 64:
             print("WARNING:resnet may not support images with small size.")
-        prelogits, _ = inference(images, keep_probability=1.0,reuse=reuse)
+        prelogits, _ = inference((images + 1) * 127.5, keep_probability=1.0,reuse=reuse)
         ret = tf.expand_dims(tf.expand_dims(prelogits, axis=1), axis=2)
         return ret
                 
