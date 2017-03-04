@@ -32,7 +32,11 @@ def detect(directory, save_dir="anime_faces_sanity_check", hw=128, cascade_file=
     all_img_dirs = get_all_image_paths_in_dir(directory)
 
     if not os.path.isfile(cascade_file):
-        raise RuntimeError("%s: not found" % cascade_file)
+        try:
+            os.system("wget https://raw.githubusercontent.com/nagadomi/lbpcascade_animeface/master/lbpcascade_animeface.xml")
+            assert os.path.isfile(cascade_file)
+        except:
+            raise RuntimeError("%s: not found" % cascade_file)
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
 

@@ -1,61 +1,52 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import numpy as np
-
-from inception_resnet_v1 import inference
 
 
 class DTN(object):
     """Domain Transfer Network
     """
-    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 128, alpha=15, beta=15, gamma=15, weight_decay = 0.0):
+    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32, alpha=15, beta=15, gamma=15):
         self.mode = mode
         self.learning_rate = learning_rate
         self.num_classes = num_classes
         self.hw = hw
         self.alpha = alpha
         self.beta=beta
-        self.gamma = gamma # For sketch losses.
-        self.weight_decay=weight_decay
-        self.embedding_size=256
-        assert hw==128
+        self.gamma=gamma
         
     def content_extractor(self, images, reuse=False):
-        # Assuming standard input -1~1, scale them to 0`255, which I think is the correct scale...
         # images: (batch, 32, 32, 3) or (batch, 32, 32, 1)
         
         if images.get_shape()[3] == 1:
             # For mnist dataset, replicate the gray scale image 3 times.
             images = tf.image.grayscale_to_rgb(images)
-        if images.get_shape()[2] <64 or images.get_shape()[1] < 64:
-            print("WARNING:resnet may not support images with small size.")
-        prelogits, _ = inference((images + 1) * 127.5, keep_probability=1.0,reuse=reuse)
-        if self.mode =='pretrain':
-            batch_norm_params = {
-                # Decay for the moving averages.
-                'decay': 0.995,
-                # epsilon to prevent 0s in variance.
-                'epsilon': 0.001,
-                # force in-place updates of mean and variance estimates
-                'updates_collections': None,
-                # Moving averages ends up in the trainable variables collection
-                'variables_collections': [tf.GraphKeys.TRAINABLE_VARIABLES],
-            }
-            bottleneck = slim.fully_connected(prelogits, self.embedding_size, activation_fn=None,
-                                              weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
-                                              weights_regularizer=slim.l2_regularizer(self.weight_decay),
-                                              normalizer_fn=slim.batch_norm,
-                                              normalizer_params=batch_norm_params,
-                                              scope='Bottleneck', reuse=False)
-            logits = slim.fully_connected(bottleneck, self.num_classes, activation_fn=None,
-                                          weights_initializer=tf.truncated_normal_initializer(stddev=0.1),
-                                          weights_regularizer=slim.l2_regularizer(self.weight_decay),
-                                          scope='Logits', reuse=False)
-            embeddings = tf.nn.l2_normalize(bottleneck, 1, 1e-10, name='embeddings')
-            return logits
-        else:
-            ret = tf.expand_dims(tf.expand_dims(prelogits, axis=1), axis=2)
-            return ret
+        
+        with tf.variable_scope('content_extractor', reuse=reuse):
+            with slim.arg_scope([slim.conv2d], padding='SAME', activation_fn=None, weights_initializer=tf.contrib.layers.xavier_initializer()):
+                with slim.arg_scope([slim.batch_norm], decay=0.95, center=True, scale=True, 
+                                    activation_fn=tf.nn.relu, is_training=(self.mode=='train' or self.mode=='pretrain')):
+
+                    net = slim.conv2d(images, 64, [3, 3], stride=1, scope='conv1_1')   # (batch_size, 32, 32, 64)
+                    net = slim.batch_norm(net, scope='bn1_1')
+                    net = slim.conv2d(net, 64, [3, 3], stride=2, scope='conv1_2')   # (batch_size, 16, 16, 64)
+                    net = slim.batch_norm(net, scope='bn1_2')
+                    net = slim.conv2d(net, 128, [3, 3], stride=1, scope='conv2_1')     # (batch_size, 16, 16, 128)
+                    net = slim.batch_norm(net, scope='bn2_1')
+                    net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv2_2')   # (batch_size, 8, 8, 128)
+                    net = slim.batch_norm(net, scope='bn2_2')
+                    net = slim.conv2d(net, 256, [3, 3], stride=1, scope='conv3_1')     # (batch_size, 8, 8, 256)
+                    net = slim.batch_norm(net, scope='bn3_1')
+                    net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3_2')     # (batch_size, 4, 4, 256)
+                    net = slim.batch_norm(net, scope='bn3_2')
+                    net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv4_1')   # (batch_size, 4, 4, 512)
+                    net = slim.batch_norm(net, scope='bn4_1')
+                    net = slim.conv2d(net, 512, [4, 4], stride=2, padding='VALID', scope='conv4_2')   # (batch_size, 1, 1, 512)
+                    net = slim.batch_norm(net, activation_fn=tf.nn.tanh, scope='bn4_2')
+                    if self.mode == 'pretrain':
+                        net = slim.conv2d(net, self.num_classes, [1, 1], padding='VALID', scope='out')
+                        net = slim.flatten(net)
+                    return net
                 
     def generator(self, inputs, reuse=False):
         # inputs: (batch, 1, 1, 128)
@@ -66,24 +57,22 @@ class DTN(object):
                                      activation_fn=tf.nn.relu, is_training=(self.mode=='train')):
                     with slim.arg_scope([slim.conv2d], padding='SAME', activation_fn=None,
                                         stride=1, weights_initializer=tf.contrib.layers.xavier_initializer()):
-                        net = slim.conv2d_transpose(inputs, 1024, [4, 4], padding='VALID',
-                                                    scope='conv_transpose1_1')  # (batch_size, 4, 4, 1024)
+                        net = slim.conv2d_transpose(inputs, 512, [4, 4], padding='VALID',
+                                                    scope='conv_transpose1_1')  # (batch_size, 4, 4, 512)
                         net = slim.batch_norm(net, scope='bn1_1')
-                        # net = slim.conv2d(net, 1024, [3, 3], scope='conv_transpose1_2')   # (batch_size, 4, 4, 512)
-                        # net = slim.batch_norm(net, scope='bn1_2')
-                        net = slim.conv2d_transpose(net, 512, [3, 3], scope='conv_transpose2_1')  # (batch_size, 8, 8, 512)
+                        net = slim.conv2d(net, 512, [3, 3], scope='conv_transpose1_2')   # (batch_size, 4, 4, 512)
+                        net = slim.batch_norm(net, scope='bn1_2')
+                        net = slim.conv2d_transpose(net, 256, [3, 3], scope='conv_transpose2_1')  # (batch_size, 8, 8, 256)
                         net = slim.batch_norm(net, scope='bn2')
-                        # net = slim.conv2d(net, 256, [3, 3], scope='conv_transpose2_2')   # (batch_size, 4, 4, 512)
-                        # net = slim.batch_norm(net, scope='bn2_2')
-                        net = slim.conv2d_transpose(net, 256, [3, 3], scope='conv_transpose3_1')  # (batch_size, 16, 16, 256)
+                        net = slim.conv2d(net, 256, [3, 3], scope='conv_transpose2_2')   # (batch_size, 4, 4, 512)
+                        net = slim.batch_norm(net, scope='bn2_2')
+                        net = slim.conv2d_transpose(net, 128, [3, 3], scope='conv_transpose3_1')  # (batch_size, 16, 16, 128)
                         net = slim.batch_norm(net, scope='bn3')
-                        # net = slim.conv2d(net, 128, [3, 3], scope='conv_transpose3_2')   # (batch_size, 4, 4, 512)
-                        # net = slim.batch_norm(net, scope='bn3_2')
-                        net = slim.conv2d_transpose(net, 128, [3, 3], scope='conv_transpose4_1')  # (batch_size, 32, 32, 128)
-                        net = slim.batch_norm(net, scope='bn4')
-                        net = slim.conv2d_transpose(net, 128, [3, 3], scope='conv_transpose5_1')  # (batch_size, 64, 64, 128)
-                        net = slim.batch_norm(net, scope='bn5')
-                        net = slim.conv2d_transpose(net, 3, [3, 3], activation_fn=tf.nn.tanh, scope='conv_transpose4')   # (batch_size, 128, 128, 3)
+                        net = slim.conv2d(net, 128, [3, 3], scope='conv_transpose3_2')   # (batch_size, 4, 4, 512)
+                        net = slim.batch_norm(net, scope='bn3_2')
+                        net = slim.conv2d_transpose(net, 128, [3, 3], scope='conv_transpose4_1')   # (batch_size, 32, 32, 128)
+                        net = slim.batch_norm(net, scope='bn4_1')
+                        net = slim.conv2d(net, 3, [3, 3], activation_fn=tf.nn.tanh, scope='conv_transpose4_2')   # (batch_size, 32, 32, 3)
                         return net
     
     def discriminator(self, images, var_scope = 'discriminator', reuse=False):
@@ -93,32 +82,20 @@ class DTN(object):
                                  weights_initializer=tf.contrib.layers.xavier_initializer()):
                 with slim.arg_scope([slim.batch_norm], decay=0.95, center=True, scale=True, 
                                     activation_fn=tf.nn.relu, is_training=(self.mode=='train')):
-                    # net = slim.conv2d(images, 128, [3, 3], stride=1, activation_fn=tf.nn.relu,
-                    #                   scope='conv1_1')  # (batch_size, 32, 32, 128)
-                    # net = slim.batch_norm(net, scope='bn1_1')
-                    # net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv1_2')  # (batch_size, 16, 16, 128)
-                    # net = slim.batch_norm(net, scope='bn1_2')
-                    # net = slim.conv2d(net, 256, [3, 3], stride=1, scope='conv2_1')  # (batch_size, 16, 16, 256)
-                    # net = slim.batch_norm(net, scope='bn2_1')
-                    # net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv2_2')  # (batch_size, 8, 8, 256)
-                    # net = slim.batch_norm(net, scope='bn2_2')
-                    # net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv3_1')  # (batch_size, 8, 8, 512)
-                    # net = slim.batch_norm(net, scope='bn3_1')
-                    # net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3_2')  # (batch_size, 4, 4, 512)
-                    # net = slim.batch_norm(net, scope='bn3_2')
-
-                    net = slim.conv2d(images, 128, [4, 4], stride=2, activation_fn=tf.nn.relu,
-                                      scope='conv1_1')  # (batch_size, 64, 64, 128)
+                    net = slim.conv2d(images, 128, [3, 3], stride=1, activation_fn=tf.nn.relu,
+                                      scope='conv1_1')  # (batch_size, 32, 32, 128)
                     net = slim.batch_norm(net, scope='bn1_1')
-                    net = slim.conv2d(net, 128, [4, 4], stride=2, scope='conv2_1')  # (batch_size, 32, 32, 128)
+                    net = slim.conv2d(net, 128, [3, 3], stride=2, scope='conv1_2')  # (batch_size, 16, 16, 128)
+                    net = slim.batch_norm(net, scope='bn1_2')
+                    net = slim.conv2d(net, 256, [3, 3], stride=1, scope='conv2_1')  # (batch_size, 16, 16, 256)
                     net = slim.batch_norm(net, scope='bn2_1')
-                    net = slim.conv2d(net, 256, [4, 4], stride=2, scope='conv3_1')  # (batch_size, 16, 16, 256)
+                    net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv2_2')  # (batch_size, 8, 8, 256)
+                    net = slim.batch_norm(net, scope='bn2_2')
+                    net = slim.conv2d(net, 512, [3, 3], stride=1, scope='conv3_1')  # (batch_size, 8, 8, 512)
                     net = slim.batch_norm(net, scope='bn3_1')
-                    net = slim.conv2d(net, 512, [4, 4], stride=2, scope='conv4_1')  # (batch_size, 8, 8, 256)
-                    net = slim.batch_norm(net, scope='bn4_1')
-                    net = slim.conv2d(net, 1024, [4, 4], stride=2, scope='conv5_1')  # (batch_size, 4, 4, 512)
-                    net = slim.batch_norm(net, scope='bn5_1')
-                    net = slim.conv2d(net, 1, [4, 4], padding='VALID', scope='conv6')   # (batch_size, 1, 1, 1)
+                    net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3_2')  # (batch_size, 4, 4, 512)
+                    net = slim.batch_norm(net, scope='bn3_2')
+                    net = slim.conv2d(net, 1, [4, 4], padding='VALID', scope='conv4')   # (batch_size, 1, 1, 1)
                     net = slim.flatten(net)
                     return net
 
@@ -137,19 +114,20 @@ class DTN(object):
         else:
             raise AssertionError("Input image must have shape [batch_size, height, width, 1 or 3]")
         filt = np.expand_dims(np.array([[1, 1, 1],
-                            [1, 1, 1],
-                            [1, 1, 1]],
-                            np.uint8),axis=2)
+                                        [1, 1, 1],
+                                        [1, 1, 1]],
+                                       np.uint8), axis=2)
         stride = 1
         rate = 1
         padding = 'SAME'
-        dil = tf.nn.dilation2d(gray_images, filt, (1,stride,stride,1), (1,rate,rate,1), padding, name='image_dilated')
+        dil = tf.nn.dilation2d(gray_images, filt, (1, stride, stride, 1), (1, rate, rate, 1), padding,
+                               name='image_dilated')
         sketch = 255 - tf.abs(gray_images - dil)
         # Did NOT apply a threshold here to clear out the low values because i think it may not be necessary.
-        sketch =  sketch / 255.0 * (max_val - min_val) + min_val
+        sketch = sketch / 255.0 * (max_val - min_val) + min_val
         assert sketch.get_shape().as_list() == gray_images.get_shape().as_list()
         return sketch
-                
+
     def build_model(self):
         
         if self.mode == 'pretrain':
@@ -182,7 +160,7 @@ class DTN(object):
         elif self.mode == 'train':
             self.src_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'svhn_images')
             self.trg_images = tf.placeholder(tf.float32, [None, self.hw , self.hw , 3], 'mnist_images')
-
+            
             # source domain (svhn to mnist)
             self.fx = self.content_extractor(self.src_images)
             self.fake_images = self.generator(self.fx)
@@ -204,10 +182,9 @@ class DTN(object):
             self.f_optimizer_src = tf.train.AdamOptimizer(self.learning_rate)
             
             t_vars = tf.trainable_variables()
-            # 'discriminator' should include vars for sketch discriminator as well.
             d_vars = [var for var in t_vars if 'discriminator' in var.name]
             g_vars = [var for var in t_vars if 'generator' in var.name]
-            f_vars = [var for var in t_vars if 'InceptionResnetV1' in var.name]
+            f_vars = [var for var in t_vars if 'content_extractor' in var.name]
 
             # TODO: add weight clipping
 
@@ -226,20 +203,22 @@ class DTN(object):
             origin_images_summary = tf.summary.image('src_origin_images', self.src_images)
             sampled_images_summary = tf.summary.image('src_sampled_images', self.fake_images)
             sampled_images_sketches_summary = tf.summary.image('src_sampled_images_sketches', self.fake_sketches)
-            self.summary_op_src = tf.summary.merge([d_loss_src_summary, g_loss_src_summary, 
-                                                    f_loss_src_summary, origin_images_summary, 
+            self.summary_op_src = tf.summary.merge([d_loss_src_summary, g_loss_src_summary,
+                                                    f_loss_src_summary, origin_images_summary,
                                                     sampled_images_summary, sampled_images_sketches_summary])
-            
+
             # target domain (mnist)
             self.fx = self.content_extractor(self.trg_images, reuse=True)
             self.reconst_images = self.generator(self.fx, reuse=True)
             self.logits_fake = self.discriminator(self.reconst_images, reuse=True)
             self.logits_real = self.discriminator(self.trg_images, reuse=True)
             self.reconst_images_sketches = self.sketch_extractor(self.reconst_images)
-            self.reconst_images_sketches_logits = self.discriminator(self.reconst_images_sketches, var_scope='discriminator_sketch', reuse=True)
+            self.reconst_images_sketches_logits = self.discriminator(self.reconst_images_sketches,
+                                                                     var_scope='discriminator_sketch', reuse=True)
             self.trg_images_sketches = self.sketch_extractor(self.trg_images)
-            self.trg_images_sketches_logits = self.discriminator(self.trg_images_sketches, var_scope='discriminator_sketch', reuse=True)
-            
+            self.trg_images_sketches_logits = self.discriminator(self.trg_images_sketches,
+                                                                 var_scope='discriminator_sketch', reuse=True)
+
             # loss
             # self.d_loss_fake_trg = slim.losses.sigmoid_cross_entropy(self.logits_fake, tf.zeros_like(self.logits_fake))
             # self.d_loss_real_trg = slim.losses.sigmoid_cross_entropy(self.logits_real, tf.ones_like(self.logits_real))
@@ -250,9 +229,10 @@ class DTN(object):
             self.d_loss_trg = self.d_loss_fake_trg + self.d_loss_real_trg + self.d_loss_fake_trg_sketch + self.d_loss_real_trg_sketch
             self.g_loss_fake_trg = - tf.reduce_mean(self.logits_fake)
             self.g_loss_const_trg = tf.reduce_mean(tf.square(self.trg_images - self.reconst_images)) * self.beta
-            self.g_loss_const_trg_sketch = tf.reduce_mean(tf.square(self.trg_images_sketches - self.reconst_images_sketches)) * self.gamma
+            self.g_loss_const_trg_sketch = tf.reduce_mean(
+                tf.square(self.trg_images_sketches - self.reconst_images_sketches)) * self.gamma
             self.g_loss_trg = self.g_loss_fake_trg + self.g_loss_const_trg + self.g_loss_const_trg_sketch
-            
+
             # optimizer
             self.d_optimizer_trg = tf.train.AdamOptimizer(self.learning_rate)
             self.g_optimizer_trg = tf.train.AdamOptimizer(self.learning_rate)
@@ -260,9 +240,11 @@ class DTN(object):
             # train op
             # TODO: add weight clipping
             with tf.name_scope('target_train_op'):
-                self.d_train_op_trg = slim.learning.create_train_op(self.d_loss_trg, self.d_optimizer_trg, variables_to_train=d_vars)
-                self.g_train_op_trg = slim.learning.create_train_op(self.g_loss_trg, self.g_optimizer_trg, variables_to_train=g_vars)
-            
+                self.d_train_op_trg = slim.learning.create_train_op(self.d_loss_trg, self.d_optimizer_trg,
+                                                                    variables_to_train=d_vars)
+                self.g_train_op_trg = slim.learning.create_train_op(self.g_loss_trg, self.g_optimizer_trg,
+                                                                    variables_to_train=g_vars)
+
             # summary op
             d_loss_fake_trg_summary = tf.summary.scalar('trg_d_loss_fake', self.d_loss_fake_trg)
             d_loss_real_trg_summary = tf.summary.scalar('trg_d_loss_real', self.d_loss_real_trg)
@@ -276,7 +258,8 @@ class DTN(object):
             origin_images_summary = tf.summary.image('trg_origin_images', self.trg_images)
             sampled_images_summary = tf.summary.image('trg_reconstructed_images', self.reconst_images)
             origin_images_sketch_summary = tf.summary.image('trg_origin_images_sketch', self.trg_images_sketches)
-            sampled_images_sketch_summary = tf.summary.image('trg_reconstructed_images_sketch', self.reconst_images_sketches)
+            sampled_images_sketch_summary = tf.summary.image('trg_reconstructed_images_sketch',
+                                                             self.reconst_images_sketches)
             self.summary_op_trg = tf.summary.merge([d_loss_trg_summary, g_loss_trg_summary,
                                                     d_loss_fake_trg_summary, d_loss_real_trg_summary,
                                                     d_loss_fake_trg_sketch_summary, d_loss_real_trg_sketch_summary,
