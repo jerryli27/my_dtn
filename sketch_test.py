@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 import cv2
 from PIL import Image
-from model_cat_wgan_resnet_sketch_loss import *
+
+from experiments.model_cat_wgan_resnet_sketch_loss import *
+
 
 def _imread(path, shape=None, bw=False, rgba=False, dtype=np.float32):
     # type: (str, tuple, bool, bool) -> np.ndarray
