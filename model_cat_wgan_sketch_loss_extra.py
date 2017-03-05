@@ -6,7 +6,7 @@ import tensorflow.contrib.slim as slim
 class DTN(object):
     """Domain Transfer Network
     """
-    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32, alpha=15, beta=15, gamma=15):
+    def __init__(self, mode='train', learning_rate=0.0003, num_classes = 10, hw = 32, alpha=15, beta=15, gamma=15, sigma=1.0):
         self.mode = mode
         self.learning_rate = learning_rate
         self.num_classes = num_classes
@@ -14,6 +14,7 @@ class DTN(object):
         self.alpha = alpha
         self.beta=beta
         self.gamma=gamma
+        self.sigma=sigma
         
     def content_extractor(self, images, reuse=False):
         # images: (batch, 32, 32, 3) or (batch, 32, 32, 1)
@@ -172,8 +173,8 @@ class DTN(object):
             # loss
             # self.d_loss_src = slim.losses.sigmoid_cross_entropy(self.logits, tf.zeros_like(self.logits))
             # self.g_loss_src = slim.losses.sigmoid_cross_entropy(self.logits, tf.ones_like(self.logits))
-            self.d_loss_src = tf.reduce_mean(self.logits) + tf.reduce_mean(self.fake_sketches_logits)
-            self.g_loss_src = - tf.reduce_mean(self.logits) - tf.reduce_mean(self.fake_sketches_logits)
+            self.d_loss_src = tf.reduce_mean(self.logits) + tf.reduce_mean(self.fake_sketches_logits) * self.sigma
+            self.g_loss_src = - tf.reduce_mean(self.logits) - tf.reduce_mean(self.fake_sketches_logits) * self.sigma
             self.f_loss_src = tf.reduce_mean(tf.square(self.fx - self.fgfx)) * self.alpha
             
             # optimizer
@@ -224,8 +225,8 @@ class DTN(object):
             # self.d_loss_real_trg = slim.losses.sigmoid_cross_entropy(self.logits_real, tf.ones_like(self.logits_real))
             self.d_loss_fake_trg = tf.reduce_mean(self.logits_fake)
             self.d_loss_real_trg = - tf.reduce_mean(self.logits_real)
-            self.d_loss_fake_trg_sketch = tf.reduce_mean(self.reconst_images_sketches_logits)
-            self.d_loss_real_trg_sketch = - tf.reduce_mean(self.trg_images_sketches_logits)
+            self.d_loss_fake_trg_sketch = tf.reduce_mean(self.reconst_images_sketches_logits) * self.sigma
+            self.d_loss_real_trg_sketch = - tf.reduce_mean(self.trg_images_sketches_logits) * self.sigma
             self.d_loss_trg = self.d_loss_fake_trg + self.d_loss_real_trg + self.d_loss_fake_trg_sketch + self.d_loss_real_trg_sketch
             self.g_loss_fake_trg = - tf.reduce_mean(self.logits_fake)
             self.g_loss_const_trg = tf.reduce_mean(tf.square(self.trg_images - self.reconst_images)) * self.beta
